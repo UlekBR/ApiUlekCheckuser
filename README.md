@@ -1,4 +1,4 @@
-Um simples check de usuario feito em python que funciona com varios aplicativos, mas seja compreensivo, script em testes ! 
+Um simples check de usuario feito em python que funciona com varios aplicativos !
 
 para fazer a instalação rode o seguinte comando !
 
