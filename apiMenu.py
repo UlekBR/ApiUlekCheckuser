@@ -81,6 +81,8 @@ if __name__ == "__main__":
     while True:
         os.system('clear')
 
+        print("🅲 🅷 🅴 🅲 🅺 🆄 🆂 🅴 🆁 🅰 🅿 🅸")
+
 
         if verificar_processo(nome_do_script):
             status = f'{cor_verde}ativo{cor_reset} - porta em uso: {obter_do_cache("porta")}'
@@ -89,19 +91,19 @@ if __name__ == "__main__":
        
         print(f"Status: {status}")
 
+        print(f"Apos instalado e ativado, envie para @UlekBR para fazer a liberação")
         print(f"")
 
         print(f"Selecione uma opção:")
         print(f" 1 - Iniciar api")
         print(f" 2 - Parar api")
         print(f" 3 - Sobre")
+        print(f" 4 - Informações sobre o servidor")
         print(f" 0 - Sair do menu")
 
         option = input("Digite a opção: ")
 
         if option == "1":
-
-            print(f"Observação: Para funcionar com security apenas se usar a porta 5454 !")
             
             adicionar_ao_cache('porta', input("\nDigite a porta que deseja usar !"))
 
@@ -132,6 +134,15 @@ if __name__ == "__main__":
             os.system('clear')
             print(f"Olá, esse é uma api para o multi-checkuser criado por @UlekBR")
             input(f"Pressione a tecla enter para voltar ao menu")
+    
+        elif option == "4":
+            os.system('clear')
+            print(f"Dados servidor")
+            print(f"Ip: {get_public_ip()}")
+            print(f'Porta: {obter_do_cache("porta")}')
+            input(f"Pressione a tecla enter para voltar ao menu")
+    
+        
         elif option == "0":
             sys.exit(0)
         else:
