@@ -6,4 +6,4 @@ para fazer a instalação rode o seguinte comando !
 
 Feito por @UlekBR
 
-Para iniciar o checkuser menu: ```ulekCheckuser```
+Para iniciar o checkuser menu: ```apiUlekCheckuser```
