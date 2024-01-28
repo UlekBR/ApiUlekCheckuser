@@ -10,7 +10,8 @@ rm -rf /root/ApiUlekCheckuser/
 rm -f /usr/local/bin/ulekCheckuser
 pkill -9 -f "/root/ApiUlekCheckuser/api.py"
 
-apt update && apt upgrade -y && apt install python3 git -y
+apt update && apt upgrade -y && apt install python3 python3-pip git -y
+pip3 install flask
 git clone https://github.com/UlekBR/ApiUlekCheckuser.git
 chmod +x /root/ApiUlekCheckuser/apiMenu.sh
 ln -s /root/ApiUlekCheckuser/apiMenu.sh /usr/local/bin/apiUlekCheckuser

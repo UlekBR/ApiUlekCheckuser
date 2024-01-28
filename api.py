@@ -1,8 +1,11 @@
 import os
 import argparse
-import json
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
+
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
 
 def runCommand(command):
     return os.popen(command).read().strip()
@@ -19,63 +22,45 @@ def format_date_for_anymod(date_string):
     date = datetime.strptime(date_string, "%d/%m/%Y")
     formatted_date = date.strftime("%Y-%m-%d-")
     return formatted_date
-class HttpHandler(BaseHTTPRequestHandler):
 
-    def do_GET(self):
-        if self.path.startswith('/user='):
-            try:
-                username = self.path.split("user=")[1]
+@app.route('/user=<username>', methods=['GET'])
+def get_user_info(username):
+    try:
 
-                userExists = int(runCommand(f"/bin/grep -wc {username} /etc/passwd")) != 0
-                
-                if(userExists):
-                    # Data
-                    expirationDate = runCommand(f"chage -l {username} | grep -i co | awk -F : '{{print $2}}'")
-                    formattedExpirationDate = datetime.strptime(expirationDate, '%b %d, %Y').strftime('%d/%m/%Y')
-                    formatted_expiration_date_for_anymod = format_date_for_anymod(formattedExpirationDate)
-                    
-                    # Limite Ssh
-                    limit = runCommand(f"grep -w {username}  /root/usuarios.db | cut -d' ' -f2")
+        user_exists = int(runCommand(f"/bin/grep -wc {username} /etc/passwd")) != 0
 
-                    # Conexões ssh
-                    sshConnections = runCommand(f"ps -u {username}  | grep sshd | wc -l")
+        if user_exists:
+            expiration_date = runCommand(f"chage -l {username} | grep -i co | awk -F : '{{print $2}}'")
+            formatted_expiration_date = datetime.strptime(expiration_date, '%b %d, %Y').strftime('%d/%m/%Y')
+            formatted_expiration_date_for_anymod = format_date_for_anymod(formatted_expiration_date)
 
-                    days = days_difference(formattedExpirationDate)
+            limit = runCommand(f"grep -w {username} /root/usuarios.db | cut -d' ' -f2 | head -n 1")
 
+            ssh_connections = runCommand(f"ps -u {username}  | grep sshd | wc -l")
 
-                    user_info = {
-                        "username": username,
-                        "user_connected": sshConnections,
-                        "user_limit": limit,
-                        "expiration_date": expirationDate,
-                        "formatted_expiration_date": formattedExpirationDate,
-                        "formatted_expiration_date_for_anymod": formatted_expiration_date_for_anymod,
-                        "remaining_days": days
-                    }
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
-                    self.end_headers()
-                    self.wfile.write(json.dumps(user_info).encode())
-                else:
-                    self.send_response(200)
-                    self.end_headers()
-                    self.wfile.write(str(f"O Usuario [{username}] não foi encontrado").encode())  # Added parentheses here
+            days = days_difference(formatted_expiration_date)
 
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode())
+            user_info = {
+                "username": username,
+                "user_connected": ssh_connections,
+                "user_limit": limit,
+                "expiration_date": expiration_date,
+                "formatted_expiration_date": formatted_expiration_date,
+                "formatted_expiration_date_for_anymod": formatted_expiration_date_for_anymod,
+                "remaining_days": days
+            }
 
+            return jsonify(user_info), 200
+        else:
+            return f"O Usuario [{username}] não foi encontrado", 200
 
-            
-
+    except Exception as e:
+        return str(e), 500 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Servidor HTTP com porta personalizável")
+    parser = argparse.ArgumentParser(description="ApiCheckuser")
     parser.add_argument('--port', type=int, default=5555, help="Porta do servidor (padrão: 5555)")
     args = parser.parse_args()
 
     porta = args.port
-    server = HTTPServer(('0.0.0.0', porta), HttpHandler)
-    print(f"Servidor iniciado na porta {porta}")
-    server.serve_forever()
+    app.run(host="0.0.0.0", port=porta)
