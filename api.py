@@ -63,4 +63,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     porta = args.port
-    app.run(host="0.0.0.0", port=porta)
+    app.run(debug=True, host="0.0.0.0", port=porta)
