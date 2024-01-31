@@ -1,10 +1,10 @@
 import os
 import argparse
 from datetime import datetime
-
-from flask import Flask, jsonify
-
-app = Flask(__name__)
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse
+import socket
+import re
 
 
 def runCommand(command):
@@ -23,44 +23,72 @@ def format_date_for_anymod(date_string):
     formatted_date = date.strftime("%Y-%m-%d-")
     return formatted_date
 
-@app.route('/user=<username>', methods=['GET'])
-def get_user_info(username):
-    try:
 
-        user_exists = int(runCommand(f"/bin/grep -wc {username} /etc/passwd")) != 0
 
-        if user_exists:
-            expiration_date = runCommand(f"chage -l {username} | grep -i co | awk -F : '{{print $2}}'")
-            formatted_expiration_date = datetime.strptime(expiration_date, '%b %d, %Y').strftime('%d/%m/%Y')
-            formatted_expiration_date_for_anymod = format_date_for_anymod(formatted_expiration_date)
+class MyRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Extract username from the path
+        parsed_path = urlparse(self.path)
+        path_segments = parsed_path.path.split('/')
+        username = path_segments[-1].split('user=')[1]
 
-            limit = runCommand(f"grep -w {username} /root/usuarios.db | cut -d' ' -f2 | head -n 1")
+        # Get user information
+        user_info = self.get_user_info(username)
 
-            ssh_connections = runCommand(f"ps -u {username}  | grep sshd | wc -l")
+        # Send response
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        self.wfile.write(user_info.encode())
 
-            days = days_difference(formatted_expiration_date)
+    def get_user_info(self, username):
+        try:
+            user_exists = int(runCommand(f"/bin/grep -wc {username} /etc/passwd")) != 0
 
-            user_info = {
-                "username": username,
-                "user_connected": ssh_connections,
-                "user_limit": limit,
-                "expiration_date": expiration_date,
-                "formatted_expiration_date": formatted_expiration_date,
-                "formatted_expiration_date_for_anymod": formatted_expiration_date_for_anymod,
-                "remaining_days": days
-            }
+            if user_exists:
+                expiration_date = runCommand(f"chage -l {username} | grep -i co | awk -F : '{{print $2}}'")
+                formatted_expiration_date = datetime.strptime(expiration_date, '%b %d, %Y').strftime('%d/%m/%Y')
+                formatted_expiration_date_for_anymod = format_date_for_anymod(formatted_expiration_date)
 
-            return jsonify(user_info), 200
-        else:
-            return f"O Usuario [{username}] não foi encontrado", 200
+                limit = 0
 
-    except Exception as e:
-        return str(e), 500 
+                if os.path.exists("/root/usuarios.db"): 
+                    limit = runCommand(f"grep -w {username} /root/usuarios.db | cut -d' ' -f2 | head -n 1") 
+                elif os.path.exists("/opt/DragonCore"): 
+                    limit = runCommand('php /opt/DragonCore/menu.php printlim | awk \'/' + username +'/ {print $3}\'') 
+                else: limit = 999
+
+                ssh_connections = runCommand(f"ps -u {username}  | grep sshd | wc -l")
+
+                days = days_difference(formatted_expiration_date)
+
+                user_info = (
+                    '{'
+                    '"username": "%s",'
+                    '"user_connected": "%s",'
+                    '"user_limit": "%s",'
+                    '"expiration_date": "%s",'
+                    '"formatted_expiration_date": "%s",'
+                    '"formatted_expiration_date_for_anymod": "%s",'
+                    '"remaining_days": "%s"'
+                    '}'
+                ) % (username, ssh_connections, limit, expiration_date, formatted_expiration_date, formatted_expiration_date_for_anymod, days)
+
+                return user_info
+            else:
+                return f"O Usuario [{username}] não foi encontrado"
+
+        except Exception as e:
+            return str(e)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ApiCheckuser")
-    parser.add_argument('--port', type=int, default=5555, help="Porta do servidor (padrão: 5555)")
+    parser.add_argument('--port', type=int, default=8080, help="Porta do servidor (padrão: 8080)")
     args = parser.parse_args()
 
-    porta = args.port
-    app.run(debug=True, host="0.0.0.0", port=porta)
+    port = args.port
+    server_address = ('0.0.0.0', port)  # Change this line to listen on all available network interfaces
+    
+    httpd = HTTPServer(server_address, MyRequestHandler)
+    print(f"Servidor rodando na porta {port} e acessível em http://0.0.0.0:{port}")
+    httpd.serve_forever()
